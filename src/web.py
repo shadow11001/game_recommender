@@ -8,6 +8,7 @@ from db import get_db_connection
 from igdb import IGDBClient, normalize_title
 from ingest import ingest_steam, ingest_psn, ingest_gog, ingest_epic, ingest_xbox
 from recommend import RecommenderEngine
+from epic import get_free_games
 
 app = Flask(__name__)
 
@@ -866,6 +867,46 @@ def apply_rematch():
         return f"<div class='alert alert-danger'>Error: {str(e)}</div>"
     finally:
         conn.close()
+
+@app.route("/api/epic/free")
+def epic_free_games():
+    # Only show if Epic is configured (Legendary config exists)
+    if not os.path.exists(os.path.expanduser("~/.config/legendary")):
+        return jsonify([])
+
+    try:
+        games = get_free_games()
+        engine = RecommenderEngine()
+        
+        # Analyze match score for each game
+        if engine.is_ready():
+            for game in games:
+                raw_score = engine.score_text(game['description'])
+                # Scale raw score (0.0 to 1.0) to percentage
+                # Cosine similarity is usually low for text (0.1-0.3 is decent). 
+                # Let's normalize loosely: 0.2 => 80%? 
+                # Actually, let's just multiply by 300 and cap at 100 for visual impact
+                # because TF-IDF vectors are sparse.
+                game['score'] = min(round(raw_score * 400), 100) 
+                
+                if game['score'] > 75:
+                    game['match_label'] = "Great Match"
+                    game['match_color'] = "success"
+                elif game['score'] > 40:
+                    game['match_label'] = "Good Match"
+                    game['match_color'] = "primary"
+                else:
+                    game['match_label'] = "Low Match"
+                    game['match_color'] = "secondary"
+        else:
+            for game in games:
+                game['score'] = 0
+                game['match_label'] = "Not Analyzed"
+                game['match_color'] = "secondary"
+
+        return jsonify(games)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route("/api/analysis/ignore_batch", methods=["POST"])
 def ignore_batch():

@@ -4,6 +4,8 @@ import numpy as np
 import requests
 import random
 from collections import Counter
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from db import get_db_connection
 from igdb import IGDBClient
 from utils import normalize_title
@@ -14,6 +16,56 @@ class RecommenderEngine:
         self.conn = get_db_connection()
         self.igdb = IGDBClient()
         self.igdb.authenticate()
+        self.tfidf_vectorizer = None
+        self.user_tfidf_matrix = None
+        self.train_text_model()
+
+    def train_text_model(self):
+        """Builds a TF-IDF model based on summaries of games the user owns."""
+        try:
+            # Get summaries of games the user actually played/liked
+            query = """
+                SELECT g.summary 
+                FROM user_library ul 
+                JOIN games g ON ul.game_id = g.id 
+                LEFT JOIN ratings r ON ul.game_id = r.game_id
+                WHERE g.summary IS NOT NULL 
+                  AND g.summary != ''
+                  AND (ul.playtime_minutes > 60 OR r.rating >= 7)
+            """
+            df = pd.read_sql_query(query, self.conn)
+            
+            if not df.empty and len(df) > 5:
+                self.tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+                self.user_tfidf_matrix = self.tfidf_vectorizer.fit_transform(df['summary'])
+        except Exception as e:
+            print(f"Failed to train text model: {e}")
+
+    def score_text(self, text):
+        """Scores an arbitrary text against the user's library using TF-IDF cosine similarity."""
+        if self.tfidf_vectorizer is None or self.user_tfidf_matrix is None or not text:
+            return 0.0
+            
+        try:
+            # Transform text
+            text_vector = self.tfidf_vectorizer.transform([text])
+            
+            # Calculate similarity with all user games
+            similarities = cosine_similarity(text_vector, self.user_tfidf_matrix)
+            
+            # We take the mean of the top 3 matches (soft max)
+            # This represents "How close is this to my favorite types of games"
+            # simple max is also good. Let's do mean of top 5.
+            if similarities.size > 0:
+                top_scores = np.sort(similarities[0])[-5:]
+                return float(np.mean(top_scores))
+            return 0.0
+        except Exception as e:
+            print(f"Error scoring text: {e}")
+            return 0.0
+
+    def is_ready(self):
+        return self.tfidf_vectorizer is not None
 
     def build_user_profile(self):
         # Fetch user library with metadata AND ratings

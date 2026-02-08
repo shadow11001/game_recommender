@@ -2,6 +2,17 @@
 
 {% block content %}
 <div class="container">
+    <!-- Epic Free Games Section -->
+    <div id="epic-container" class="mb-5 d-none">
+        <h2 class="mb-3 text-warning"><i class="bi bi-gift-fill me-2"></i>Free on Epic This Week</h2>
+        <div class="row" id="epic-games-list">
+            <!-- Populated via JS -->
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-light" role="status"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-md-12">
             <h1 class="mb-4 d-flex justify-content-between align-items-center">
@@ -111,4 +122,57 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        fetch('/api/epic/free')
+            .then(response => response.json())
+            .then(games => {
+                const container = document.getElementById('epic-container');
+                const list = document.getElementById('epic-games-list');
+                
+                if (games.length > 0) {
+                    list.innerHTML = ''; // Clear spinner
+                    container.classList.remove('d-none');
+                    
+                    games.forEach(game => {
+                        const col = document.createElement('div');
+                        col.className = 'col-md-6 col-lg-4 mb-4';
+                        // Determine card class based on match
+                        let borderClass = 'border-secondary';
+                        if(game.match_color === 'success') borderClass = 'border-success';
+                        if(game.match_color === 'primary') borderClass = 'border-primary';
+                        
+                        col.innerHTML = `
+                            <div class="card h-100 shadow ${borderClass} bg-dark text-white">
+                                <div class="position-relative">
+                                    <img src="${game.image}" class="card-img-top" alt="${game.title}" style="height: 200px; object-fit: cover; opacity: 0.8;">
+                                    <span class="position-absolute top-0 end-0 badge bg-${game.match_color} m-2 fs-6 shadow">
+                                        ${game.score}% Match
+                                    </span>
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title text-truncate" title="${game.title}">${game.title}</h5>
+                                    <p class="card-text small text-white-50 flex-grow-1 clamp-text-3" title="${game.description}">${game.description}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <a href="${game.url}" target="_blank" class="btn btn-outline-light btn-sm">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i> Get it Free
+                                        </a>
+                                        <span class="badge bg-${game.match_color}">${game.match_label}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        list.appendChild(col);
+                    });
+                } else {
+                    container.remove();
+                }
+            })
+            .catch(err => {
+                console.error('Error loading Epic games:', err);
+                document.getElementById('epic-container').remove();
+            });
+    });
+</script>
 {% endblock %}

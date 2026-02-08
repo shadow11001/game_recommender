@@ -20,8 +20,12 @@ A personal game recommendation system that aggregates your game libraries from m
 
 ## Configuration
 
+You can configure most services directly through the Web Interface by clicking the **Integrations** button.
+
+Alternatively, you can manually set up the environment:
+
 1.  **Environment Variables**:
-    Copy `.env.example` to `.env` and fill in your API keys:
+    Copy `.env.example` to `.env` and fill in your API keys (optional if using UI):
     ```bash
     cp .env.example .env
     ```
@@ -30,9 +34,9 @@ A personal game recommendation system that aggregates your game libraries from m
     *   `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`
 
 2.  **Platform Tokens**:
-    *   **Xbox**: Requires `xbox_tokens.json` in the root directory. This contains your OAuth2 tokens.
-    *   **GOG**: Requires `gog_token.txt` in the root directory.
-    *   **Epic Games**: Requires `~/.config/legendary` (Legendary-GL config) to be present or configured.
+    *   **Xbox**: Requires `xbox_tokens.json` in the root directory. This contains your OAuth2 tokens. Uploading via UI is supported.
+    *   **GOG**: Requires `gog_token.txt` in the root directory. Paste cookie/JSON via UI.
+    *   **Epic Games**: Requires `~/.config/legendary` (Legendary-GL config) to be present on the host (and mounted/copied if using specific setups).
 
 ## Running Manually
 

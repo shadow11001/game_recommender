@@ -30,3 +30,9 @@ client_secret.json
 
 # Logs
 *.log
+
+# Editors
+.vscode/
+
+# Scripts
+scripts/

@@ -89,4 +89,3 @@ Alternatively, you can manually set up the environment:
   - `recommend.py`: Recommendation engine logic.
   - `templates/`: HTML templates.
 - `data/`: SQLite databases.
-- `scripts/`: various debug and maintenance scripts.

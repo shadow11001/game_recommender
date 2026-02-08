@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environments
+.venv/
+venv/
+env/
+
+# Databases
+*.db
+*.sqlite3
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Secrets and Private Data
+.env
+*.env
+gog_token.txt
+xbox_tokens.json
+*_token.*
+*.pem
+*.key
+client_secret.json
+
+# OS
+.DS_Store
+
+# Logs
+*.log

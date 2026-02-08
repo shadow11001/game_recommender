@@ -1,0 +1,41 @@
+<div class="modal-header">
+    <h5 class="modal-title">Edit: {{ game.original_title }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <form hx-post="/api/game/edit/{{ game.id }}" 
+          hx-target="#library-table" 
+          hx-swap="innerHTML" 
+          hx-include="[name='search'], [name='sort'], [name='platform']"
+          onsubmit="bootstrap.Modal.getInstance(document.getElementById('editModal')).hide()">
+        
+        <div class="mb-3">
+            <label class="form-label">Play Status</label>
+            <select name="status" class="form-select">
+                <option value="unplayed" {% if game.manual_play_status == 'unplayed' %}selected{% endif %}>Unplayed</option>
+                <option value="played" {% if game.manual_play_status == 'played' or game.manual_play_status == 'playing' %}selected{% endif %}>Played</option>
+                <option value="completed" {% if game.manual_play_status == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="dropped" {% if game.manual_play_status == 'dropped' %}selected{% endif %}>Dropped</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Playtime (Minutes)</label>
+            <input type="number" name="playtime" class="form-control" value="{{ game.playtime_minutes }}">
+            <div class="form-text">Sync may overwrite strictly calculated values.</div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">User Rating (1-10)</label>
+            <input type="number" name="rating" min="1" max="10" class="form-control" value="{{ game.rating or '' }}">
+        </div>
+
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="playedCheck" name="played_toggle" 
+                   {% if game.playtime_minutes > 10 or game.manual_play_status != 'unplayed' %}checked{% endif %}>
+            <label class="form-check-label" for="playedCheck">Mark as Played (Force)</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+    </form>
+</div>

@@ -1,0 +1,174 @@
+<div class="row mb-4 animate-fade-in">
+    <!-- Archetype Banner -->
+    <div class="col-12 mb-3">
+        <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-body p-4 text-center">
+                <h6 class="text-white-50 text-uppercase small ls-2 mb-2">Gamer Archetype</h6>
+                <h1 class="display-5 fw-bold mb-0 text-white"><i class="bi bi-trophy-fill me-2 warning"></i> {{ gamer_type }}</h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="col-md-6 mb-3">
+        <div class="card border-0 shadow-sm bg-light">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase small ls-1">Total Playtime</h6>
+                <h2 class="display-4 fw-bold text-primary mb-0">{{ total_hours|int }} <span class="fs-5 text-secondary">hrs</span></h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card border-0 shadow-sm bg-light">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase small ls-1">Favorite Title</h6>
+                <h3 class="fw-bold text-success mb-0 text-truncate" title="{{ favorite_game }}">{{ favorite_game }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Radar Chart for Genres -->
+    <div class="col-lg-7 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="card-title text-secondary mb-4"><i class="bi bi-pie-chart-fill me-2"></i>Taste Radar</h4>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="genreRadarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Themes List -->
+    <div class="col-lg-5 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="card-title text-secondary mb-3"><i class="bi bi-palette me-2"></i>Thematic Preferences</h4>
+                <div class="list-group list-group-flush">
+                    {% for t in themes[:5] %}
+                    <div class="list-group-item px-0 border-0">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-semibold">{{ t.name }}</span>
+                            <span class="small text-muted">{{ t.pct|int }}%</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-gradient-success" role="progressbar" style="width: {{ t.pct }}%" aria-valuenow="{{ t.pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Top Developers -->
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="card-title text-secondary mb-3"><i class="bi bi-code-square me-2"></i>Top Developers</h4>
+                <div class="list-group list-group-flush">
+                    {% for d in developers %}
+                    <div class="list-group-item border-0 px-0">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold">{{ d.name }}</span>
+                            <span class="badge bg-light text-dark rounded-pill">{{ d.pct|int }}% Match</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ d.pct }}%"></div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Not enough developer data yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playstyle Alignment -->
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="card-title text-secondary mb-3"><i class="bi bi-controller me-2"></i>Playstyle Preference</h4>
+                
+                <div class="text-center py-4">
+                    <div class="d-flex justify-content-between mb-2 fw-bold">
+                        <span class="text-primary"><i class="bi bi-person-fill"></i> Single Player</span>
+                        <span class="text-danger">Multiplayer <i class="bi bi-people-fill"></i></span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ sp_pct }}%" 
+                             aria-valuenow="{{ sp_pct }}" aria-valuemin="0" aria-valuemax="100">{{ sp_pct }}%</div>
+                        <div class="progress-bar bg-danger" role="progressbar" style="width: {{ 100 - sp_pct }}%" 
+                             aria-valuenow="{{ 100 - sp_pct }}" aria-valuemin="0" aria-valuemax="100">{{ 100 - sp_pct }}%</div>
+                    </div>
+                    <p class="mt-3 text-muted">
+                        You spend <strong>{{ sp_pct }}%</strong> of your time in Single Player experiences.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const ctx = document.getElementById('genreRadarChart');
+        
+        // Destroy existing chart if it exists (in case of re-renders)
+        if (window.myGenreChart) {
+            window.myGenreChart.destroy();
+        }
+
+        const labels = {{ genre_labels | tojson }};
+        const data = {{ genre_data | tojson }};
+
+        window.myGenreChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Genre Affinity',
+                    data: data,
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgb(54, 162, 235)',
+                    pointBackgroundColor: 'rgb(54, 162, 235)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(54, 162, 235)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                elements: {
+                    line: {
+                        borderWidth: 3
+                    }
+                },
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true,
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        suggestedMin: 0,
+                        ticks: {
+                            display: false // Hide numbers on the radar axis for cleaner look
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    })();
+</script>

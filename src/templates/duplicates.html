@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Library Analysis</h1>
+    
+    <ul class="nav nav-tabs mb-4" id="dupTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" id="matched-tab" data-bs-toggle="tab" data-bs-target="#matched" type="button">Merged Games ({{ matched_duplicates|length }})</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="potential-tab" data-bs-toggle="tab" data-bs-target="#potential" type="button">Potential Duplicates ({{ potential_duplicates|length }})</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="mismatch-tab" data-bs-toggle="tab" data-bs-target="#mismatch" type="button">Title Mismatches ({{ mismatches|length }})</button>
+        </li>
+    </ul>
+    
+    <div class="tab-content" id="dupTabsContent">
+        <!-- Merged Games -->
+        <div class="tab-pane fade show active" id="matched" role="tabpanel">
+            <div class="alert alert-info">These groups share a single Game ID. This means they are correctly treated as the same game across platforms.</div>
+             {% for group in matched_duplicates %}
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ group[0].golden_title }}</strong> <span class="badge bg-light text-dark">IGDB ID: {{ group[0].igdb_id }}</span>
+                        </div>
+                        {% if group[0].cover_url %}
+                        <img src="{{ group[0].cover_url }}" height="40" alt="cover">
+                        {% endif %}
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for item in group %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                {% if item.platform == 'steam' %}<i class="bi bi-steam text-primary" title="Steam"></i>
+                                {% elif item.platform == 'psn' %}<i class="bi bi-playstation text-info" title="PlayStation"></i>
+                                {% elif item.platform == 'xbox' %}<i class="bi bi-xbox text-success" title="Xbox"></i>
+                                {% elif item.platform == 'xbox_pc' %}<i class="bi bi-windows text-success" title="Xbox PC"></i>
+                                {% elif item.platform == 'epic' %}<i class="bi bi-egg-fill" title="Epic"></i>
+                                {% elif item.platform == 'gog' %}<i class="bi bi-badge-ad" title="GOG"></i>
+                                {% else %}<i class="bi bi-controller text-secondary" title="{{ item.platform }}"></i>{% endif %}
+                                {{ item.original_title }}
+                                <small class="text-muted">({{ item.platform }})</small>
+                            </span>
+                            <div>
+                                <span class="badge bg-secondary me-2">{{ item.playtime_minutes }} mins</span>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        hx-post="/api/library/{{ item.id }}/unlink"
+                                        hx-confirm="Are you sure you want to detach this game from the group?">
+                                    Unlink
+                                </button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Potential Duplicates -->
+        <div class="tab-pane fade" id="potential" role="tabpanel">
+             <div class="alert alert-warning">These groups have similar normalized titles but are NOT fully merged into a single Game ID.</div>
+             {% for entry in potential_duplicates %}
+                <div class="card mb-3 border-warning">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Normalized: <strong>{{ entry.norm }}</strong></span>
+                         <button class="btn btn-sm btn-outline-secondary"
+                                hx-post="/api/analysis/ignore_batch"
+                                hx-vals='{"ids": "{{ entry.games|map(attribute="id")|join(",") }}"}'
+                                hx-confirm="Dismiss this entire group? All items in it will be hidden from analysis."
+                                title="Dismiss Group">
+                            <i class="bi bi-eye-slash-fill"></i> Dismiss Group
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for item in entry.games %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                {% if item.platform == 'steam' %}<i class="bi bi-steam text-primary" title="Steam"></i>
+                                {% elif item.platform == 'psn' %}<i class="bi bi-playstation text-info" title="PlayStation"></i>
+                                {% elif item.platform == 'xbox' %}<i class="bi bi-xbox text-success" title="Xbox"></i>
+                                {% elif item.platform == 'xbox_pc' %}<i class="bi bi-windows text-success" title="Xbox PC"></i>
+                                {% elif item.platform == 'epic' %}<i class="bi bi-egg-fill" title="Epic"></i>
+                                {% elif item.platform == 'gog' %}<i class="bi bi-badge-ad" title="GOG"></i>
+                                {% else %}<i class="bi bi-controller text-secondary" title="{{ item.platform }}"></i>{% endif %}
+                                {{ item.original_title }}
+                                <small class="text-muted ms-2">IGDB: {{ item.linked_igdb_id or 'None' }}</small>
+                            </span>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary"
+                                        hx-post="/api/library/{{ item.id }}/ignore"
+                                        hx-confirm="Ignore this item? It will be hidden from potential duplicates."
+                                        title="Ignore">
+                                    <i class="bi bi-eye-slash"></i>
+                                </button>
+                                <button class="btn btn-outline-primary"
+                                        hx-get="/rematch/{{ item.id }}" 
+                                        hx-target="#global-modal-content" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#globalModal">
+                                    Rematch
+                                </button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+            {% if not potential_duplicates %}
+            <div class="text-center text-muted p-4">No potential duplicates found.</div>
+            {% endif %}
+        </div>
+        
+        <!-- Mismatches -->
+        <div class="tab-pane fade" id="mismatch" role="tabpanel">
+             <div class="alert alert-secondary">These games differ significantly from their matched Golden Title. Verify they are correct.</div>
+             <div class="list-group">
+                {% for item in mismatches %}
+                <div class="list-group-item">
+                    <div class="row align-items-center">
+                        <div class="col-md-5">
+                            {% if item.platform == 'steam' %}<i class="bi bi-steam text-primary" title="Steam"></i>
+                            {% elif item.platform == 'psn' %}<i class="bi bi-playstation text-info" title="PlayStation"></i>
+                            {% elif item.platform == 'xbox' %}<i class="bi bi-xbox text-success" title="Xbox"></i>
+                            {% elif item.platform == 'xbox_pc' %}<i class="bi bi-windows text-success" title="Xbox PC"></i>
+                            {% elif item.platform == 'epic' %}<i class="bi bi-egg-fill" title="Epic"></i>
+                            {% elif item.platform == 'gog' %}<i class="bi bi-badge-ad" title="GOG"></i>
+                            {% else %}<i class="bi bi-controller text-secondary" title="{{ item.platform }}"></i>{% endif %}
+                            <strong>{{ item.original_title }}</strong>
+                        </div>
+                        <div class="col-md-1 text-center">
+                            <i class="bi bi-arrow-right"></i>
+                        </div>
+                        <div class="col-md-5">
+                            <strong>{{ item.golden_title }}</strong> <small class="text-muted">(ID: {{ item.igdb_id }})</small>
+                        </div>
+                        <div class="col-md-1 text-end">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary"
+                                        hx-post="/api/library/{{ item.id }}/ignore"
+                                        hx-confirm="Ignore this mismatch? This will hide it from this list."
+                                        title="Ignore">
+                                    <i class="bi bi-eye-slash"></i>
+                                </button>
+                                <button class="btn btn-outline-danger"
+                                        hx-get="/rematch/{{ item.id }}" 
+                                        hx-target="#global-modal-content" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#globalModal">
+                                    Fix
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not mismatches %}
+                <div class="text-center text-muted p-4">No obvious title mismatches found.</div>
+                {% endif %}
+             </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function(){
+        // Restore active tab
+        var activeTabId = localStorage.getItem('activeDupTab');
+        if(activeTabId){
+            var triggerEl = document.querySelector('#' + activeTabId);
+            if(triggerEl){
+                var tab = new bootstrap.Tab(triggerEl);
+                tab.show();
+            }
+        }
+
+        // Save active tab on click
+        var tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabEls.forEach(function(el){
+            el.addEventListener('shown.bs.tab', function (event) {
+                localStorage.setItem('activeDupTab', event.target.id);
+            });
+        });
+    });
+</script>
+{% endblock %}

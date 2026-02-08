@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="mb-4 d-flex justify-content-between align-items-center">
+                Game Recommendations
+                <button class="btn btn-outline-info" 
+                        hx-get="/api/profile" 
+                        hx-target="#gamer-profile" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#profile-container">
+                    <i class="bi bi-person-lines-fill"></i> View My Gamer Taste Profile
+                </button>
+            </h1>
+            
+            <div id="profile-container" class="collapse mb-5">
+                <div class="card card-body bg-light" id="gamer-profile">
+                    <!-- Profile content loads here -->
+                    <div class="text-center">
+                        <div class="spinner-border text-info" role="status"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Tool -->
+            <div class="card shadow-sm mb-5 border-0 bg-dark text-white" style="background: linear-gradient(45deg, #2c3e50, #4ca1af);">
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-7">
+                            <h3 class="mb-2"><i class="bi bi-cpu-fill me-2"></i>Game Compatibility Analyzer</h3>
+                            <p class="text-white-50 mb-0">Enter a game title to see if it matches your taste profile.</p>
+                        </div>
+                        <div class="col-md-5">
+                            <form hx-post="/api/analyze" hx-target="#analysis-result" hx-indicator="#analyze-spinner">
+                                <div class="input-group mb-2">
+                                    <input type="text" name="title" class="form-control" placeholder="e.g. Elden Ring">
+                                    <button class="btn btn-warning" type="submit">
+                                        <span id="analyze-spinner" class="spinner-border spinner-border-sm htmx-indicator" role="status"></span>
+                                        Analyze
+                                    </button>
+                                </div>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-secondary text-light border-secondary">OR IGDB ID</span>
+                                    <input type="number" name="igdb_id" class="form-control bg-dark text-light border-secondary" placeholder="e.g. 119277">
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="analysis-result" class="mt-4"></div>
+                </div>
+            </div>
+            
+            <div id="recommendation-result" class="row g-4">
+                <div class="col-12 text-center py-5">
+                    <div class="card shadow-sm p-5">
+                        <i class="bi bi-magic display-1 text-primary mb-3"></i>
+                        <h3 class="mb-3">Find Your Next Adventure</h3>
+                        <p class="text-muted mb-4">
+                            We'll analyze your top-played games and achievement history to suggest new titles 
+                            you might enjoy (excluding ones you already own).
+                        </p>
+                        
+                        <div class="mb-4 d-flex justify-content-center align-items-center gap-3">
+                            <select name="platform" class="form-select w-auto" 
+                                    hx-get="/api/recommendations" 
+                                    hx-target="#recommendation-result" 
+                                    hx-indicator="#loading-indicator"
+                                    hx-include="[name='genre']">
+                                <option value="all">All Sources</option>
+                                <option value="steam">Steam Library</option>
+                                <option value="psn">PlayStation Library</option>
+                            </select>
+
+                            <label class="fw-bold text-secondary ms-2">Mood:</label>
+                            <select name="genre" class="form-select w-auto" 
+                                    hx-get="/api/recommendations" 
+                                    hx-target="#recommendation-result" 
+                                    hx-indicator="#loading-indicator"
+                                    hx-include="[name='platform']">
+                                <option value="all">All Genres (Surprise Me)</option>
+                                <option value="Role-playing (RPG)">RPG</option>
+                                <option value="Strategy">Strategy</option>
+                                <option value="Shooter">Shooter</option>
+                                <option value="Adventure">Adventure</option>
+                                <option value="Indie">Indie</option>
+                                <option value="Platform">Platform</option>
+                                <option value="Simulator">Simulator</option>
+                                <option value="Sport">Sport</option>
+                                <option value="Hack and slash/Beat 'em up">Hack & Slash</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary btn-lg px-5" 
+                                hx-include="[name='genre']"
+                                hx-get="/api/recommendations" 
+                                hx-target="#recommendation-result" 
+                                hx-indicator="#loading-indicator">
+                            Generate Recommendations
+                        </button>
+                        <div id="loading-indicator" class="htmx-indicator mt-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted small mt-2">Consulting the oracles (IGDB)...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

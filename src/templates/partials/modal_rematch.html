@@ -1,0 +1,43 @@
+
+<div class="modal-header">
+    <h5 class="modal-title">Rematch Metadata: {{ game.original_title }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <div class="mb-3">
+        <label class="form-label">Search IGDB</label>
+        <div class="input-group">
+            <input type="text" id="rematch-search" class="form-control" value="{{ game.original_title }}" placeholder="Game Name...">
+            <button class="btn btn-outline-secondary" hx-get="/api/igdb/search" 
+                    hx-vals='{"lib_id": {{ game.id }}, "query": ""}' 
+                    hx-include="#rematch-search"
+                    hx-target="#search-results"
+                    onclick="this.setAttribute('hx-vals', JSON.stringify({lib_id: {{ game.id }}, query: document.getElementById('rematch-search').value}))">
+                Search
+            </button>
+        </div>
+    </div>
+    
+    <div id="search-results" class="list-group mb-3">
+    </div>
+    
+    <div class="text-center text-muted small p-2">Search to find correct game link</div>
+
+    <hr class="my-3">
+    
+    <div class="mb-3">
+        <label class="form-label">Direct Match by IGDB ID</label>
+        <div class="input-group">
+            <input type="number" id="manual-igdb-id" name="igdb_id" class="form-control" placeholder="ID (e.g. 1942)">
+            <button class="btn btn-primary" 
+                    hx-post="/api/rematch/apply" 
+                    hx-vals='{"lib_id": {{ game.id }}}'
+                    hx-include="#manual-igdb-id"
+                    hx-target="#global-modal-content">
+                Link ID
+            </button>
+        </div>
+        <div class="form-text text-muted">Use this if search fails. Enter the numeric IGDB ID.</div>
+    </div>
+</div>
+

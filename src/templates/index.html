@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">My Games</h5>
+        <div class="d-flex gap-2">
+            <input type="search" 
+                   name="search" 
+                   value="{{ current_search }}"
+                   class="form-control form-control-sm" 
+                   placeholder="Search..." 
+                   hx-get="/library/grid" 
+                   hx-trigger="keyup changed delay:500ms, refresh-grid" 
+                   hx-target="#library-table" 
+                   hx-include="[name='sort'], [name='platform']"
+                   hx-replace-url="true"
+                   style="width: 200px;">
+            
+            <select name="platform" 
+                    class="form-select form-select-sm" 
+                    hx-get="/library/grid" 
+                    hx-trigger="change" 
+                    hx-target="#library-table"
+                    hx-include="[name='search'], [name='sort']"
+                    hx-replace-url="true"
+                    style="width: 130px;">
+                <option value="all" {% if current_platform == 'all' %}selected{% endif %}>Platform: All</option>
+                <option value="steam" {% if current_platform == 'steam' %}selected{% endif %}>Steam</option>
+                <option value="psn" {% if current_platform == 'psn' %}selected{% endif %}>PlayStation</option>
+                <option value="xbox" {% if current_platform == 'xbox' %}selected{% endif %}>Xbox</option>
+                <option value="xbox_pc" {% if current_platform == 'xbox_pc' %}selected{% endif %}>Xbox (PC)</option>
+                <option value="gog" {% if current_platform == 'gog' %}selected{% endif %}>GOG</option>
+                <option value="epic" {% if current_platform == 'epic' %}selected{% endif %}>Epic</option>
+                <option value="manual" {% if current_platform == 'manual' %}selected{% endif %}>Manual</option>
+            </select>
+
+            <select name="sort" 
+                    class="form-select form-select-sm" 
+                    hx-get="/library/grid" 
+                    hx-trigger="change" 
+                    hx-target="#library-table"
+                    hx-include="[name='search'], [name='platform']"
+                    hx-replace-url="true"
+                    style="width: 150px;">
+                <option value="playtime_desc" {% if current_sort == 'playtime_desc' %}selected{% endif %}>Time: High to Low</option>
+                <option value="playtime_asc" {% if current_sort == 'playtime_asc' %}selected{% endif %}>Time: Low to High</option>
+                <option value="title_asc" {% if current_sort == 'title_asc' %}selected{% endif %}>Title: A-Z</option>
+                <option value="rating_desc" {% if current_sort == 'rating_desc' %}selected{% endif %}>Rating: High to Low</option>
+                <option value="last_played" {% if current_sort == 'last_played' %}selected{% endif %}>Recent</option>
+                <option value="unmatched" {% if current_sort == 'unmatched' %}selected{% endif %}>Unmatched (Links Missing)</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="library-table">
+            {% include "partials/library_grid.html" %}
+        </div>
+    </div>
+</div>
+{% endblock %}

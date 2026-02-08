@@ -1,0 +1,89 @@
+{% if recommendations %}
+    {% for game in recommendations %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="row g-0 h-100">
+                <div class="col-md-4 bg-dark d-flex align-items-center justify-content-center">
+                    {% if game.cover %}
+                        <img src="//images.igdb.com/igdb/image/upload/t_cover_big/{{ game.cover.image_id }}.jpg" class="img-fluid rounded-start" alt="{{ game.name }}">
+                    {% else %}
+                        <i class="bi bi-controller text-white fs-1"></i>
+                    {% endif %}
+                </div>
+                <div class="col-md-8">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">{{ game.name }}</h5>
+                        <p class="card-text small text-muted">
+                            <i class="bi bi-star-fill text-warning"></i> {{ (game.rating|default(0) / 10)|round(1) }}/10
+                        </p>
+                        <p class="card-text small clamp-text-3">
+                            {{ game.summary|default('No summary available.') }}
+                        </p>
+                        {% if game.based_on %}
+                        <p class="card-text small text-muted mt-2 border-top pt-2">
+                            <i class="bi bi-diagram-3"></i> Based on: <em>{{ game.based_on }}</em>
+                        </p>
+                        {% endif %}
+
+                        <!-- Pricing Section -->
+                        {% if game.prices %}
+                        <div class="mt-2 pt-2 border-top">
+                            {% if game.prices.Steam %}
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-dark"><i class="bi bi-steam"></i> Steam</span>
+                                    <span class="fw-bold text-success">${{ game.prices.Steam }}</span>
+                                </div>
+                            {% endif %}
+                            {% if game.prices['Best Deal'] and (not game.prices.Steam or game.prices['Best Deal'] < game.prices.Steam) %}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-danger"><i class="bi bi-tag-fill"></i> Best Deal</span>
+                                    <span class="fw-bold text-danger">${{ game.prices['Best Deal'] }}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                             <!-- Fallback/Loading state for pricing could go here -->
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-top-0 d-flex justify-content-between">
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary border-0 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Dismiss Recommendation">
+                        <i class="bi bi-eye-slash"></i> Dismiss
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><h6 class="dropdown-header">Reason?</h6></li>
+                        <li>
+                            <button class="dropdown-item" 
+                                hx-post="/api/recommendations/dismiss/{{ game.id }}?reason=played" 
+                                hx-target="closest .col-lg-4" 
+                                hx-swap="outerHTML">
+                                <i class="bi bi-check2-circle text-success me-2"></i> Already Played
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item" 
+                                hx-post="/api/recommendations/dismiss/{{ game.id }}?reason=not_interested" 
+                                hx-target="closest .col-lg-4" 
+                                hx-swap="outerHTML">
+                                <i class="bi bi-x-circle text-danger me-2"></i> Not Interested
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <a href="https://www.google.com/search?q={{ game.name }} game" target="_blank" class="btn btn-sm btn-outline-primary">
+                    Search <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="col-12 text-center">
+        <div class="alert alert-warning">
+            No recommendations found. Try playing more games to build your profile!
+        </div>
+        <button class="btn btn-primary" onclick="window.location.reload()">Try Again</button>
+    </div>
+{% endif %}

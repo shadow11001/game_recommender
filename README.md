@@ -5,7 +5,9 @@ A personal game recommendation system that aggregates your game libraries from m
 ## Features
 
 - **Multi-Platform Integration**: Consolidates games from Steam, PSN, Xbox, Epic Games, and GOG.
-- **Smart Recommendations**: Uses content-based filtering to recommend games from your backlog or new discoveries.
+- **Smart Recommendations**: Uses content-based filtering (TF-IDF & Metadata) to discover new games based on your favorites.
+- **Backlog Management**: Analyzes your unplayed library (< 2 hours playtime) and ranks games based on your taste profile to help you decide what to play next. Includes tools to mark games as played or dismiss them.
+- **Epic Free Games**: Automatically fetches the current free games on Epic Store and rates how well they match your taste.
 - **Data Visualization**: Visualize your library statistics and playtime.
 - **Web Interface**: Clean Flask-based UI to browse, search, and manage your collection.
 
@@ -86,6 +88,6 @@ Alternatively, you can manually set up the environment:
 - `src/`: Source code.
   - `ingest.py`: Scripts for fetching data from APIs.
   - `web.py`: Flask web application.
-  - `recommend.py`: Recommendation engine logic.
+  - `recommend.py`: Recommendation engine logic (Backlog & Discovery).
   - `templates/`: HTML templates.
 - `data/`: SQLite databases.

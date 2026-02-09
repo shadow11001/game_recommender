@@ -258,6 +258,132 @@ class RecommenderEngine:
                 
         return toxic_genres, toxic_keywords
 
+    def get_backlog_recommendations(self, limit=50):
+        # 1. Build Profile
+        profile = self.build_user_profile()
+        if not profile:
+            return []
+
+        # 2. Query Candidates (Unplayed Backlog)
+        # Group duplicates directly in SQL
+        query = """
+            SELECT 
+                GROUP_CONCAT(ul.id) as library_ids, 
+                g.id as game_id, 
+                g.title, 
+                g.genres, 
+                g.themes, 
+                g.keywords, 
+                g.developers, 
+                g.game_modes, 
+                g.summary, 
+                g.cover_url, 
+                GROUP_CONCAT(DISTINCT ul.platform) as platforms, 
+                MAX(COALESCE(ul.playtime_minutes, 0)) as playtime_minutes
+            FROM user_library ul
+            JOIN games g ON ul.game_id = g.id
+            WHERE (ul.playtime_minutes IS NULL OR ul.playtime_minutes < 120)
+              AND ul.manual_play_status = 'unplayed'
+              AND NOT EXISTS (
+                  SELECT 1 FROM user_library ul2 
+                  WHERE ul2.game_id = g.id 
+                  AND (ul2.playtime_minutes >= 120 OR (ul2.manual_play_status != 'unplayed' AND ul2.manual_play_status IS NOT NULL))
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM ratings r WHERE r.game_id = g.id
+              )
+            GROUP BY g.id
+        """
+        
+        try:
+            candidates_df = pd.read_sql_query(query, self.conn)
+        except Exception as e:
+            print(f"Error querying backlog: {e}")
+            return []
+
+        if candidates_df.empty:
+            return []
+
+        scored_candidates = []
+        toxic_genres, toxic_keywords = self.get_toxic_traits(profile)
+
+        # Weights
+        W_GENRE = 1.0
+        W_THEME = 0.8
+        W_KEYWORD = 0.5
+        W_DEV = 2.0
+        W_MODE = 0.5
+        W_TEXT = 50.0
+        
+        # Penalty Multipliers
+        P_GENRE = 10.0
+        P_THEME = 8.0
+        P_KEYWORD = 5.0
+        P_DEV = 20.0
+        P_NEG_KEYWORD = 10.0 
+
+        for _, row in candidates_df.iterrows():
+            # Parse aggregated fields
+            lib_ids_str = str(row['library_ids']) if pd.notna(row['library_ids']) else ""
+            platforms_str = str(row['platforms']) if pd.notna(row['platforms']) else ""
+            
+            library_ids = [int(x) for x in lib_ids_str.split(',') if x.strip().isdigit()]
+            platforms = [p.strip() for p in platforms_str.split(',') if p.strip()]
+
+            # Determine best library_id (e.g. first one)
+            library_id = library_ids[0] if library_ids else None
+            max_playtime = row['playtime_minutes'] if pd.notna(row['playtime_minutes']) else 0
+
+            # JSON Parsing and Normalization
+            try:
+                genres = [x.title() for x in (json.loads(row['genres']) if row['genres'] else [])]
+                themes = [x.title() for x in (json.loads(row['themes']) if row['themes'] else [])]
+                keywords = [x.lower() for x in (json.loads(row['keywords']) if row['keywords'] else [])]
+                developers = json.loads(row['developers']) if row['developers'] else []
+                modes = json.loads(row['game_modes']) if row['game_modes'] else []
+            except (json.JSONDecodeError, TypeError):
+                continue
+            
+            score = 0.0
+
+            # --- Scoring ---
+
+            # Positive Matches
+            for g in genres: score += profile['genres'].get(g, 0) * W_GENRE
+            for t in themes: score += profile['themes'].get(t, 0) * W_THEME
+            for k in keywords: score += profile['keywords'].get(k, 0) * W_KEYWORD
+            for d in developers: score += profile['developers'].get(d, 0) * W_DEV
+            for m in modes: score += profile['game_modes'].get(m, 0) * W_MODE
+            
+            # Negative Matches (Penalties)
+            for g in genres: score -= profile['disliked_genres'].get(g, 0) * P_GENRE
+            for t in themes: score -= profile['disliked_themes'].get(t, 0) * P_THEME
+            for k in keywords:
+                score -= profile['disliked_keywords'].get(k, 0) * P_KEYWORD
+                score -= profile['negative_keywords'].get(k, 0) * P_NEG_KEYWORD
+            for d in developers: score -= profile['disliked_developers'].get(d, 0) * P_DEV
+
+            # Text Similarity
+            if row['summary'] and isinstance(row['summary'], str):
+                txt_sim = self.score_text(row['summary'])
+                score += txt_sim * W_TEXT
+            
+            scored_candidates.append({
+                'id': library_id,
+                'library_ids': library_ids,
+                'title': row['title'],
+                'cover_url': row['cover_url'],
+                'platforms': sorted(list(set(platforms))),
+                'playtime_minutes': max_playtime,
+                'score': score,
+                'genres': genres[:3]
+            })
+            
+        # Sort by score descending
+        scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+        
+        return scored_candidates[:limit]
+
     def get_recommendations(self, limit=12, genre_filter=None, platform_filter=None):
         c = self.conn.cursor()
         

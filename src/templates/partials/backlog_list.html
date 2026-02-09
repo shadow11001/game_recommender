@@ -1,0 +1,75 @@
+{% if games %}
+    {% for game in games %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 shadow-sm border-0 position-relative">
+            <div class="position-absolute top-0 end-0 p-2">
+                <span class="badge bg-primary opacity-75">{{ loop.index }}</span>
+            </div>
+            <div class="row g-0 h-100">
+                <div class="col-md-4 bg-dark d-flex align-items-center justify-content-center">
+                    {% if game.cover_url %}
+                        <img src="{{ game.cover_url.replace('t_thumb', 't_cover_big') }}" class="img-fluid rounded-start" alt="{{ game.title }}" onerror="this.src='//placehold.co/150x200/222/FFF?text=No+Cover'">
+                    {% else %}
+                        <div class="text-center p-3">
+                            <i class="bi bi-controller text-white fs-1"></i>
+                            <div class="small text-muted mt-2">No Cover</div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-8">
+                    <div class="card-body d-flex flex-column h-100">
+                        <h5 class="card-title text-truncate" title="{{ game.title }}">{{ game.title }}</h5>
+                        
+                        <div class="mb-2">
+                            {% for p in game.platforms %}
+                                <span class="badge bg-secondary">{{ p }}</span>
+                            {% endfor %}
+                            {% for g in game.genres %}
+                                <span class="badge bg-dark text-light border border-secondary">{{ g }}</span>
+                            {% endfor %}
+                        </div>
+
+                        <p class="card-text small text-muted mb-2">
+                            <i class="bi bi-clock-history"></i> Playtime: {{ game.playtime_minutes|default(0) }}m
+                        </p>
+                        
+                        <div class="mt-auto">
+                            <!-- Match Score Indicator -->
+                            <div class="progress" style="height: 6px;" title="Match Score: {{ game.score|round(1) }}">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ [(game.score / 20) * 100, 100]|min }}%"></div>
+                            </div>
+                            <small class="text-muted d-block text-end mt-1" style="font-size: 0.7rem">Match Strength</small>
+                            
+                            <!-- Action Buttons -->
+                            <div class="d-grid gap-2 mt-3">
+                                <button class="btn btn-sm btn-outline-success"
+                                        hx-get="/api/modal/backlog_action?ids={{ game.library_ids|join(',') }}&action=played"
+                                        hx-target="#globalModal .modal-content"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#globalModal">
+                                    <i class="bi bi-check-circle-fill"></i> Mark as Played
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        hx-get="/api/modal/backlog_action?ids={{ game.library_ids|join(',') }}&action=dropped"
+                                        hx-target="#globalModal .modal-content"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#globalModal">
+                                    <i class="bi bi-x-circle"></i> Dismiss
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="col-12 text-center py-5">
+        <div class="display-1 text-muted"><i class="bi bi-check-circle"></i></div>
+        <h3 class="mt-3">Backlog Clear!</h3>
+        <p class="lead text-muted">You don't have any unplayed games (or we couldn't match them to your profile).</p>
+        <a href="/" class="btn btn-primary mt-3">Browse Full Library</a>
+    </div>
+{% endif %}

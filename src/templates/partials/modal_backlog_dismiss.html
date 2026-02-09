@@ -1,0 +1,67 @@
+<div class="modal-header">
+    <h5 class="modal-title">Dismiss {{ game_title }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+    <p>Did you play this game, or are you just removing it from the backlog?</p>
+    
+    <div class="mb-3 text-center">
+        <label class="form-label d-block fw-bold">Rate it (Optional)</label>
+        <div class="rating-stars" style="font-size: 2rem; cursor: pointer;">
+            <i class="bi bi-star" data-value="1" onclick="setDismissRating(1)"></i>
+            <i class="bi bi-star" data-value="2" onclick="setDismissRating(2)"></i>
+            <i class="bi bi-star" data-value="3" onclick="setDismissRating(3)"></i>
+            <i class="bi bi-star" data-value="4" onclick="setDismissRating(4)"></i>
+            <i class="bi bi-star" data-value="5" onclick="setDismissRating(5)"></i>
+            <i class="bi bi-star" data-value="6" onclick="setDismissRating(6)"></i>
+            <i class="bi bi-star" data-value="7" onclick="setDismissRating(7)"></i>
+            <i class="bi bi-star" data-value="8" onclick="setDismissRating(8)"></i>
+            <i class="bi bi-star" data-value="9" onclick="setDismissRating(9)"></i>
+            <i class="bi bi-star" data-value="10" onclick="setDismissRating(10)"></i>
+        </div>
+        <input type="hidden" id="dismissRatingInput" name="rating" value="">
+        <div class="form-text">Click a star to rate. If rated, game will be marked as 'Played'.</div>
+    </div>
+</div>
+<div class="modal-footer justify-content-between">
+    <button type="button" class="btn btn-secondary" 
+            hx-post="/api/backlog/dismiss/{{ lib_id }}"
+            hx-target="#game-card-{{ lib_id }}" 
+            hx-swap="outerHTML"
+            data-bs-dismiss="modal">
+        <i class="bi bi-trash"></i> Drop (Not Played)
+    </button>
+    
+    <button type="button" class="btn btn-primary" 
+            id="dismiss-played-btn"
+            hx-post="/api/backlog/dismiss/{{ lib_id }}"
+            hx-include="#dismissRatingInput"
+            hx-params="rating"
+            hx-target="#game-card-{{ lib_id }}" 
+            hx-swap="outerHTML"
+            data-bs-dismiss="modal">
+        <i class="bi bi-check-lg"></i> Mark Played & Dismiss
+    </button>
+</div>
+
+<script>
+    function setDismissRating(val) {
+        document.getElementById('dismissRatingInput').value = val;
+        // Update stars visuals
+        const stars = document.querySelectorAll('.rating-stars i');
+        stars.forEach(s => {
+            const v = parseInt(s.getAttribute('data-value'));
+            if (v <= val) {
+                s.classList.remove('bi-star');
+                s.classList.add('bi-star-fill');
+                s.classList.add('text-warning');
+            } else {
+                s.classList.remove('bi-star-fill');
+                s.classList.remove('text-warning');
+                s.classList.add('bi-star');
+            }
+        });
+        
+        // Highlight logic could be improved, generic simple version here
+    }
+</script>

@@ -144,6 +144,18 @@ def library_grid():
 def recommendations_page():
     return render_template("recommendations.html")
 
+@app.route("/backlog")
+def backlog_page():
+    return render_template("backlog.html")
+
+@app.route("/api/backlog")
+def api_backlog():
+    engine = RecommenderEngine()
+    # Fetch backlog items
+    backlog_games = engine.get_backlog_recommendations(limit=48)
+    # Render partial
+    return render_template("partials/backlog_list.html", games=backlog_games)
+
 @app.route("/api/recommendations")
 def api_recommendations():
     genre = request.args.get('genre', 'all')
@@ -184,6 +196,8 @@ def dismiss_recommendation(igdb_id):
         </div>
     </div>
     """
+
+
 
 @app.route("/api/profile")
 def api_profile():
@@ -282,6 +296,15 @@ def modal_rematch(game_id):
     conn.close()
     return render_template("partials/modal_rematch.html", game=game)
 
+@app.route("/api/modals/backlog_dismiss/<int:lib_id>")
+def modal_backlog_dismiss(lib_id):
+    conn = get_db_connection()
+    row = conn.execute("SELECT original_title FROM user_library WHERE id = ?", (lib_id,)).fetchone()
+    conn.close()
+    
+    title = row['original_title'] if row else "Unknown Game"
+    return render_template("partials/modal_backlog_dismiss.html", lib_id=lib_id, game_title=title)
+
 # --- API Actions ---
 
 @app.route("/api/sync", methods=["POST"])
@@ -327,22 +350,32 @@ def edit_game(lib_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Update Library Metadata
-    cursor.execute("""
-        UPDATE user_library 
-        SET playtime_minutes = ?, manual_play_status = ? 
-        WHERE id = ?
-    """, (playtime, status, lib_id))
+    # Check for linked game_id first for propagation
+    row = cursor.execute("SELECT game_id FROM user_library WHERE id = ?", (lib_id,)).fetchone()
+    gid = row['game_id'] if row else None
     
-    # Check if we need to force status if toggle was checked
+    # logic to force played if toggle is on
     if forced_played and status == 'unplayed':
-        cursor.execute("UPDATE user_library SET manual_play_status = 'played' WHERE id = ?", (lib_id,))
+        status = 'played'
+
+    # 1. Update Library Metadata
+    if gid:
+        # Propagate to all entries for this game
+        cursor.execute("""
+            UPDATE user_library 
+            SET playtime_minutes = ?, manual_play_status = ? 
+            WHERE game_id = ?
+        """, (playtime, status, gid))
+    else:
+        # Only update this specific entry
+        cursor.execute("""
+            UPDATE user_library 
+            SET playtime_minutes = ?, manual_play_status = ? 
+            WHERE id = ?
+        """, (playtime, status, lib_id))
 
     # 2. Update Rating (Linked via game_id)
-    # Get the linked game_id first
-    row = cursor.execute("SELECT game_id FROM user_library WHERE id = ?", (lib_id,)).fetchone()
-    if row and row['game_id']:
-        gid = row['game_id']
+    if gid:
         if rating:
             cursor.execute("INSERT OR REPLACE INTO ratings (game_id, rating) VALUES (?, ?)", (gid, rating))
         else:
@@ -358,6 +391,58 @@ def edit_game(lib_id):
     
     games = fetch_games(search=search, sort_by=sort_by, platform=platform) 
     return render_template("partials/library_grid.html", games=games)
+
+@app.route("/api/backlog/dismiss/<int:lib_id>", methods=["POST"])
+def dismiss_backlog_game(lib_id):
+    rating = request.args.get("rating", type=int)
+    
+    # Determine status based on whether a rating was provided
+    if rating:
+        status = 'played'
+    else:
+        status = 'dropped'
+        
+    conn = get_db_connection()
+    c = conn.cursor()
+    
+    try:
+        # Get game_id logic
+        row = c.execute("SELECT game_id FROM user_library WHERE id = ?", (lib_id,)).fetchone()
+        gid = row['game_id'] if row else None
+        
+        if gid:
+            # Update all instances
+            c.execute("UPDATE user_library SET manual_play_status = ? WHERE game_id = ?", (status, gid))
+            # Handle rating
+            if rating:
+                c.execute("INSERT OR REPLACE INTO ratings (game_id, rating) VALUES (?, ?)", (gid, rating))
+        else:
+            # Update single instance
+            c.execute("UPDATE user_library SET manual_play_status = ? WHERE id = ?", (status, lib_id))
+            # Can't rate unmatched games
+            
+        conn.commit()
+    except Exception as e:
+        print(f"Dismiss error: {e}")
+        return f"<div class='alert alert-danger'>Error: {e}</div>", 500
+    finally:
+        conn.close()
+        
+    # Feedback UI
+    icon = "bi-check-circle-fill text-success" if status == 'played' else "bi-archive-fill text-secondary"
+    msg = "Marked as Played" if status == 'played' else "Moved to Dropped"
+    
+    return f"""
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="h-100 d-flex align-items-center justify-content-center bg-light text-muted border rounded" style="min-height: 200px;">
+            <div class="text-center">
+                <i class="bi {icon} fs-1"></i>
+                <p class="mt-2 mb-0 fw-bold">{msg}</p>
+                <small>Refresh to see backlog updates</small>
+            </div>
+        </div>
+    </div>
+    """
 
 @app.route("/api/game/add", methods=["POST"])
 def add_game_manual():
@@ -927,6 +1012,90 @@ def ignore_batch():
         print(f"Error ignoring batch: {e}")
         
     return "<script>window.location.reload()</script>"
+
+@app.route("/api/modal/backlog_action")
+def modal_backlog_action():
+    library_ids = request.args.get('ids', '')
+    action = request.args.get('action', 'played')
+    
+    # Optional: fetch title for display
+    # Assuming first ID is enough to get game info
+    game_title = "Game"
+    first_id = library_ids.split(',')[0] if library_ids else None
+    
+    if first_id:
+        try:
+             conn = get_db_connection()
+             res = conn.execute("SELECT original_title FROM user_library WHERE id = ?", (first_id,)).fetchone()
+             if res: game_title = res[0]
+             conn.close()
+        except: pass
+
+    return render_template('partials/modal_backlog_action.html', 
+                          library_ids=library_ids, 
+                          action=action,
+                          game_title=game_title)
+
+@app.route("/api/game/backlog_update", methods=["POST"])
+def backlog_update():
+    library_ids_str = request.form.get('library_ids', '')
+    action = request.form.get('action', 'played')
+    rating = request.form.get('rating')
+    
+    print(f"Backlog Update: IDs={library_ids_str}, Action={action}, Rating={rating}")
+
+    # Parse IDs
+    try:
+        library_ids = [int(x) for x in library_ids_str.split(',') if x.strip()]
+    except Exception as e:
+        print(f"ID Parse Error: Input='{library_ids_str}' Error={e}")
+        return jsonify({"error": "Invalid IDs"}), 400
+        
+    if not library_ids:
+        return jsonify({"error": "No IDs provided"}), 400
+        
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        
+        # 1. Update user_library status
+        status = 'played'
+        if action == 'dropped': status = 'dropped'
+        if action == 'completed': status = 'completed'
+        
+        # Use executemany or formatted IN clause
+        placeholders = ','.join('?' * len(library_ids))
+        cursor.execute(f"""
+            UPDATE user_library 
+            SET manual_play_status = ? 
+            WHERE id IN ({placeholders})
+        """, [status] + library_ids)
+        
+        print(f"Updated {cursor.rowcount} rows to status '{status}'")
+
+        # 2. Update Rating if provided
+        if rating and rating.strip():
+            # Get game_id from one of the library entries
+            game_id_row = cursor.execute(f"SELECT game_id FROM user_library WHERE id = ?", (library_ids[0],)).fetchone()
+            if game_id_row:
+                game_id = game_id_row[0]
+                cursor.execute("""
+                    INSERT OR REPLACE INTO ratings (game_id, rating) 
+                    VALUES (?, ?)
+                """, (game_id, int(rating)))
+                print(f"Updated rating for game {game_id} to {rating}")
+
+        conn.commit()
+    except Exception as e:
+        print(f"Error updating backlog: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+        
+    # Return updated backlog list
+    recommender = RecommenderEngine()
+    backlog_games = recommender.get_backlog_recommendations(limit=48) # Refresh list
+    return render_template('partials/backlog_list.html', games=backlog_games)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
